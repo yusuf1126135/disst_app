@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "837774174401",
+    "project_id": "disstapp-9cdc9",
+    "storage_bucket": "disstapp-9cdc9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:837774174401:android:073a0c13da0f989b994c40",
+        "android_client_info": {
+          "package_name": "com.disstapp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOrkbY9A-GL1krlN04ZqJe2GzQrHk8tBk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
