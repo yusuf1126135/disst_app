@@ -1,5 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
+import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 
 class SplashController {
@@ -8,9 +10,15 @@ class SplashController {
 
     if (!context.mounted) return;
 
+    final user = FirebaseAuth.instance.currentUser;
+
+    final destination = user != null
+        ? const HomeScreen()
+        : const LoginScreen();
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => const HomeScreen(),
+        builder: (_) => destination,
       ),
     );
   }
