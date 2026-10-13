@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'create_post_screen.dart';
+
+import '../friends/friends_home_screen.dart';
+import '../messages/message_home_screen.dart';
 import '../profile/profile_screen.dart';
+import 'create_post_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -72,36 +75,61 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // --------------------------------------------------
-            // QUICK ICONS
-            // --------------------------------------------------
-
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 18,
                 vertical: 6,
               ),
               child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _quickIcon(
                     icon: Icons.home_rounded,
                     label: 'Home',
                     active: true,
                   ),
-                  _quickIcon(
-                    icon: Icons.people_outline_rounded,
-                    label: 'Friends',
+
+                  // ==================================================
+                  // FRIENDS
+                  // ==================================================
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const FriendsHomeScreen(),
+                        ),
+                      );
+                    },
+                    child: _quickIcon(
+                      icon: Icons.people_outline_rounded,
+                      label: 'Friends',
+                    ),
                   ),
-                  _quickIcon(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    label: 'Messages',
+
+                  // ==================================================
+                  // MESSAGES
+                  // ==================================================
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MessageHomeScreen(),
+                        ),
+                      );
+                    },
+                    child: _quickIcon(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      label: 'Messages',
+                    ),
                   ),
+
                   _quickIcon(
                     icon: Icons.play_circle_outline_rounded,
                     label: 'Shorts',
                   ),
+
                   _quickIcon(
                     icon: Icons.notifications_none_rounded,
                     label: 'Notifications',
@@ -112,9 +140,9 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // --------------------------------------------------
+            // ======================================================
             // FEED
-            // --------------------------------------------------
+            // ======================================================
 
             Expanded(
               child: ListView(
@@ -125,16 +153,15 @@ class HomeScreen extends StatelessWidget {
                   100,
                 ),
                 children: [
-                  // --------------------------------------------
+                  // ==================================================
                   // CREATE POST
-                  // --------------------------------------------
+                  // ==================================================
 
                   GestureDetector(
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) =>
-                              const CreatePostScreen(),
+                          builder: (_) => const CreatePostScreen(),
                         ),
                       );
                     },
@@ -142,8 +169,7 @@ class HomeScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius:
-                            BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(18),
                         border: Border.all(
                           color: borderColor,
                         ),
@@ -190,9 +216,9 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // --------------------------------------------
+                  // ==================================================
                   // HOME FEED TITLE
-                  // --------------------------------------------
+                  // ==================================================
 
                   const Text(
                     'HOME FEED',
@@ -206,23 +232,21 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // --------------------------------------------
+                  // ==================================================
                   // SAMPLE POST
-                  // --------------------------------------------
+                  // ==================================================
 
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius:
-                          BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(
                         color: borderColor,
                       ),
                     ),
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
@@ -241,8 +265,7 @@ class HomeScreen extends StatelessWidget {
                                 'DisstApp User',
                                 style: TextStyle(
                                   color: darkText,
-                                  fontWeight:
-                                      FontWeight.w700,
+                                  fontWeight: FontWeight.w700,
                                   fontSize: 15,
                                 ),
                               ),
@@ -276,13 +299,11 @@ class HomeScreen extends StatelessWidget {
                               MainAxisAlignment.spaceAround,
                           children: [
                             _postAction(
-                              icon: Icons
-                                  .favorite_border_rounded,
+                              icon: Icons.favorite_border_rounded,
                               label: 'Like',
                             ),
                             _postAction(
-                              icon: Icons
-                                  .comment_outlined,
+                              icon: Icons.comment_outlined,
                               label: 'Comment',
                             ),
                             _postAction(
@@ -317,8 +338,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           child: Row(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _bottomItem(
                 icon: Icons.groups_outlined,
@@ -337,8 +357,7 @@ class HomeScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            const CreatePostScreen(),
+                        builder: (_) => const CreatePostScreen(),
                       ),
                     );
                   },
@@ -357,8 +376,7 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) =>
-                          const ProfileScreen(),
+                      builder: (_) => const ProfileScreen(),
                     ),
                   );
                 },
@@ -393,8 +411,9 @@ class HomeScreen extends StatelessWidget {
           style: TextStyle(
             color: active ? brandPurple : secondaryText,
             fontSize: 10,
-            fontWeight:
-                active ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: active
+                ? FontWeight.w700
+                : FontWeight.w500,
           ),
         ),
       ],
@@ -442,8 +461,7 @@ class HomeScreen extends StatelessWidget {
         foregroundColor: secondaryText,
       ),
       child: Column(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             icon,

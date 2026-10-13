@@ -1,0 +1,472 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------------------------
+    // HELPER FUNCTIONS
+    // --------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validUserId(userId) {
+      return userId is string && userId.size() > 0;
+    }
+
+    function requestPath(senderId, recipientId) {
+      return /databases/$(database)/documents/friendRequests/$(senderId + '_' + recipientId);
+    }
+
+    function friendPath(userId, otherId) {
+      return /databases/$(database)/documents/friends/$(userId + '_' + otherId);
+    }
+
+    function isFriend(userId, otherId) {
+      return signedIn()
+        && exists(friendPath(userId, otherId))
+        && exists(friendPath(otherId, userId));
+    }
+
+    function canReadPost(post) {
+      return signedIn()
+        && (
+          post.authorId == request.auth.uid
+          || post.visibility == 'public'
+          || (
+            post.visibility == 'followers'
+            && exists(
+              /databases/$(database)/documents/follows/$(request.auth.uid + '_' + post.authorId)
+            )
+          )
+          || (
+            post.visibility == 'friends'
+            && isFriend(post.authorId, request.auth.uid)
+          )
+        );
+    }
+
+    function validPostVisibility(visibility) {
+      return visibility in ['public', 'followers', 'friends', 'private'];
+    }
+
+    // --------------------------------------------------
+    // PUBLIC USER PROFILES
+    // --------------------------------------------------
+
+    match /users/{userId} {
+
+      allow read: if signedIn();
+
+      allow create: if isSelf(userId)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'username',
+          'displayName',
+          'bio',
+          'photoUrl',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.username is string
+        && request.resource.data.displayName is string
+        && request.resource.data.bio is string
+        && request.resource.data.photoUrl is string
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+
+      allow update: if isSelf(userId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'username',
+          'displayName',
+          'bio',
+          'photoUrl',
+          'updatedAt'
+        ])
+        && request.resource.data.username is string
+        && request.resource.data.displayName is string
+        && request.resource.data.bio is string
+        && request.resource.data.photoUrl is string
+        && request.resource.data.updatedAt is timestamp;
+
+      allow delete: if isSelf(userId);
+    }
+
+    // --------------------------------------------------
+    // PRIVATE USER DATA
+    // --------------------------------------------------
+
+    match /privateUsers/{userId} {
+
+      allow read: if isSelf(userId);
+
+      allow create: if isSelf(userId)
+        && request.resource.data.keys().hasOnly(['email'])
+        && request.resource.data.email is string;
+
+      allow update: if false;
+
+      allow delete: if isSelf(userId);
+    }
+
+    // --------------------------------------------------
+    // FRIEND REQUEST PREFERENCES
+    // --------------------------------------------------
+
+    match /friendSettings/{userId} {
+
+      allow read: if isSelf(userId);
+
+      allow create: if isSelf(userId)
+        && request.resource.data.keys().hasOnly([
+          'allowFriendRequests',
+          'updatedAt'
+        ])
+        && request.resource.data.allowFriendRequests is bool
+        && request.resource.data.updatedAt is timestamp;
+
+      allow update: if isSelf(userId)
+        && request.resource.data.keys().hasOnly([
+          'allowFriendRequests',
+          'updatedAt'
+        ])
+        && request.resource.data.allowFriendRequests is bool
+        && request.resource.data.updatedAt is timestamp;
+
+      allow delete: if isSelf(userId);
+    }
+
+    // --------------------------------------------------
+    // FRIEND REQUESTS
+    //
+    // Document ID: senderId_recipientId
+    // Status: pending, accepted, declined, cancelled
+    // --------------------------------------------------
+
+    match /friendRequests/{requestId} {
+
+      function validRequestShape(data) {
+        return data.keys().hasOnly([
+          'senderId',
+          'recipientId',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && validUserId(data.senderId)
+        && validUserId(data.recipientId)
+        && data.senderId != data.recipientId
+        && requestId == data.senderId + '_' + data.recipientId;
+      }
+
+      function validFriendshipCreated(data) {
+        return existsAfter(friendPath(data.senderId, data.recipientId))
+          && existsAfter(friendPath(data.recipientId, data.senderId));
+      }
+
+      allow read: if signedIn()
+        && (
+          resource.data.senderId == request.auth.uid
+          || resource.data.recipientId == request.auth.uid
+        );
+
+      allow create: if signedIn()
+        && validRequestShape(request.resource.data)
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && exists(
+          /databases/$(database)/documents/users/$(request.resource.data.recipientId)
+        )
+        && (
+          !exists(
+            /databases/$(database)/documents/friendSettings/$(request.resource.data.recipientId)
+          )
+          || get(
+            /databases/$(database)/documents/friendSettings/$(request.resource.data.recipientId)
+          ).data.allowFriendRequests == true
+        )
+        && !exists(friendPath(request.resource.data.senderId, request.resource.data.recipientId))
+        && !exists(friendPath(request.resource.data.recipientId, request.resource.data.senderId));
+
+      allow update: if signedIn()
+        && validRequestShape(resource.data)
+        && validRequestShape(request.resource.data)
+        && request.resource.data.senderId == resource.data.senderId
+        && request.resource.data.recipientId == resource.data.recipientId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt is timestamp
+        && (
+          // Recipient accepts the request only when both
+          // friendship documents are created in this transaction.
+          (
+            resource.data.status == 'pending'
+            && resource.data.recipientId == request.auth.uid
+            && request.resource.data.status == 'accepted'
+            && validFriendshipCreated(resource.data)
+          )
+
+          ||
+
+          // Recipient declines a pending request.
+          (
+            resource.data.status == 'pending'
+            && resource.data.recipientId == request.auth.uid
+            && request.resource.data.status == 'declined'
+          )
+
+          ||
+
+          // Sender cancels a pending request.
+          (
+            resource.data.status == 'pending'
+            && resource.data.senderId == request.auth.uid
+            && request.resource.data.status == 'cancelled'
+          )
+
+          ||
+
+          // Allow the sender to retry after a terminal state.
+          (
+            resource.data.status in ['declined', 'cancelled']
+            && resource.data.senderId == request.auth.uid
+            && request.resource.data.status == 'pending'
+            && (
+              !exists(friendPath(resource.data.senderId, resource.data.recipientId))
+              && !exists(friendPath(resource.data.recipientId, resource.data.senderId))
+            )
+            && (
+              !exists(
+                /databases/$(database)/documents/friendSettings/$(resource.data.recipientId)
+              )
+              || get(
+                /databases/$(database)/documents/friendSettings/$(resource.data.recipientId)
+              ).data.allowFriendRequests == true
+            )
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------
+    // FRIENDSHIPS
+    //
+    // Two directional documents per friendship:
+    // friends/userA_userB
+    // friends/userB_userA
+    // Both must be created atomically on acceptance.
+    // --------------------------------------------------
+
+    match /friends/{friendshipId} {
+
+      function validFriendDocument(data) {
+        return data.keys().hasOnly([
+          'userIds',
+          'friendRequestId',
+          'createdAt'
+        ])
+        && data.userIds is list
+        && data.userIds.size() == 2
+        && data.userIds[0] is string
+        && data.userIds[1] is string
+        && data.userIds[0] != data.userIds[1]
+        && data.friendRequestId is string
+        && data.createdAt is timestamp
+        && (
+          friendshipId == data.userIds[0] + '_' + data.userIds[1]
+          || friendshipId == data.userIds[1] + '_' + data.userIds[0]
+        );
+      }
+
+      allow read: if signedIn()
+        && resource.data.userIds is list
+        && resource.data.userIds.hasAny([request.auth.uid]);
+
+      allow create: if signedIn()
+        && validFriendDocument(request.resource.data)
+        && request.resource.data.userIds.hasAny([request.auth.uid])
+        && existsAfter(
+          /databases/$(database)/documents/friendRequests/$(request.resource.data.friendRequestId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/friendRequests/$(request.resource.data.friendRequestId)
+        ).data.status == 'accepted'
+        && getAfter(
+          /databases/$(database)/documents/friendRequests/$(request.resource.data.friendRequestId)
+        ).data.recipientId == request.auth.uid
+        && request.resource.data.friendRequestId ==
+          getAfter(
+            /databases/$(database)/documents/friendRequests/$(request.resource.data.friendRequestId)
+          ).data.senderId + '_' +
+          getAfter(
+            /databases/$(database)/documents/friendRequests/$(request.resource.data.friendRequestId)
+          ).data.recipientId
+        && existsAfter(
+          friendPath(
+            request.resource.data.userIds[0],
+            request.resource.data.userIds[1]
+          )
+        )
+        && existsAfter(
+          friendPath(
+            request.resource.data.userIds[1],
+            request.resource.data.userIds[0]
+          )
+        );
+
+      allow update: if false;
+
+      // Either participant may end the friendship.
+      // Both directional documents must be deleted by the client
+      // in the same atomic operation.
+      allow delete: if signedIn()
+        && resource.data.userIds is list
+        && resource.data.userIds.hasAny([request.auth.uid]);
+    }
+
+    // --------------------------------------------------
+    // FOLLOWERS / FOLLOWING
+    //
+    // Document ID: followerId_followedId
+    // Independent of friendship.
+    // --------------------------------------------------
+
+    match /follows/{followId} {
+
+      allow read: if signedIn()
+        && (
+          resource.data.followerId == request.auth.uid
+          || resource.data.followedId == request.auth.uid
+        );
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'followerId',
+          'followedId',
+          'createdAt'
+        ])
+        && request.resource.data.followerId == request.auth.uid
+        && validUserId(request.resource.data.followedId)
+        && request.resource.data.followedId != request.auth.uid
+        && followId ==
+          request.resource.data.followerId + '_' +
+          request.resource.data.followedId
+        && request.resource.data.createdAt is timestamp
+        && exists(
+          /databases/$(database)/documents/users/$(request.resource.data.followedId)
+        );
+
+      allow update: if false;
+
+      allow delete: if signedIn()
+        && resource.data.followerId == request.auth.uid;
+    }
+
+    // --------------------------------------------------
+    // POSTS
+    // --------------------------------------------------
+
+    match /posts/{postId} {
+
+      allow read: if canReadPost(resource.data);
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'postId',
+          'authorId',
+          'authorName',
+          'authorPhotoUrl',
+          'text',
+          'visibility',
+          'allowMessages',
+          'mediaType',
+          'mediaUrls',
+          'likeCount',
+          'commentCount',
+          'shareCount',
+          'viewCount',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.postId == postId
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.authorName is string
+        && request.resource.data.authorPhotoUrl is string
+        && request.resource.data.text is string
+        && validPostVisibility(request.resource.data.visibility)
+        && request.resource.data.allowMessages is bool
+        && request.resource.data.mediaType in ['none', 'image', 'video']
+        && request.resource.data.mediaUrls is list
+        && request.resource.data.likeCount == 0
+        && request.resource.data.commentCount == 0
+        && request.resource.data.shareCount == 0
+        && request.resource.data.viewCount == 0
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+
+      allow update: if signedIn()
+        && resource.data.authorId == request.auth.uid
+        && request.resource.data.postId == resource.data.postId
+        && request.resource.data.authorId == resource.data.authorId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.likeCount == resource.data.likeCount
+        && request.resource.data.commentCount == resource.data.commentCount
+        && request.resource.data.shareCount == resource.data.shareCount
+        && request.resource.data.viewCount == resource.data.viewCount
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'authorName',
+          'authorPhotoUrl',
+          'text',
+          'visibility',
+          'allowMessages',
+          'mediaType',
+          'mediaUrls',
+          'updatedAt'
+        ])
+        && request.resource.data.authorName is string
+        && request.resource.data.authorPhotoUrl is string
+        && request.resource.data.text is string
+        && validPostVisibility(request.resource.data.visibility)
+        && request.resource.data.allowMessages is bool
+        && request.resource.data.mediaType in ['none', 'image', 'video']
+        && request.resource.data.mediaUrls is list
+        && request.resource.data.updatedAt is timestamp;
+
+      allow delete: if signedIn()
+        && resource.data.authorId == request.auth.uid;
+    }
+
+    // --------------------------------------------------
+    // NOTIFICATIONS
+    //
+    // Clients may read their own notifications.
+    // Trusted backend code will create notifications.
+    // --------------------------------------------------
+
+    match /notifications/{notificationId} {
+
+      allow read: if signedIn()
+        && resource.data.recipientId == request.auth.uid;
+
+      allow create, update, delete: if false;
+    }
+
+    // --------------------------------------------------
+    // DENY EVERYTHING NOT EXPLICITLY ALLOWED ABOVE
+    // --------------------------------------------------
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'add_story_screen.dart';
+import 'dashboard_screen.dart';
+import 'edit_profile_screen.dart';
+
 const Color disstPurple = Color(0xFF6C3BFF);
 const Color disstBlue = Color(0xFF2D9CFF);
 const Color disstBlack = Color(0xFF121212);
@@ -140,7 +144,6 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     const SizedBox(height: 16),
 
-                    // Profile photo
                     GestureDetector(
                       onTap: () {
                         if (photoUrl.isNotEmpty) {
@@ -169,7 +172,6 @@ class ProfileScreen extends StatelessWidget {
 
                     const SizedBox(height: 12),
 
-                    // Display name
                     Text(
                       displayName,
                       style: const TextStyle(
@@ -181,7 +183,6 @@ class ProfileScreen extends StatelessWidget {
 
                     const SizedBox(height: 4),
 
-                    // Username
                     Text(
                       '@$username',
                       style: TextStyle(
@@ -192,12 +193,9 @@ class ProfileScreen extends StatelessWidget {
 
                     const SizedBox(height: 8),
 
-                    // Bio
                     if (bio.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 30,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 30),
                         child: Text(
                           bio,
                           textAlign: TextAlign.center,
@@ -210,39 +208,33 @@ class ProfileScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    // Stats
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildStat(
-                          '0',
-                          'Followers',
-                        ),
+                        _buildStat('0', 'Followers'),
                         const SizedBox(width: 40),
-                        _buildStat(
-                          '0',
-                          'Following',
-                        ),
+                        _buildStat('0', 'Following'),
                         const SizedBox(width: 40),
-                        _buildStat(
-                          '0',
-                          'Likes',
-                        ),
+                        _buildStat('0', 'Likes'),
                       ],
                     ),
 
                     const SizedBox(height: 22),
 
-                    // Profile actions
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AddStoryScreen(),
+                                  ),
+                                );
+                              },
                               icon: const Icon(
                                 Icons.add_circle_outline,
                                 color: disstPurple,
@@ -264,8 +256,7 @@ class ProfileScreen extends StatelessWidget {
                                   vertical: 12,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                             ),
@@ -275,7 +266,17 @@ class ProfileScreen extends StatelessWidget {
 
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => EditProfileScreen(
+                                      initialDisplayName: displayName,
+                                      initialUsername: username,
+                                      initialBio: bio,
+                                    ),
+                                  ),
+                                );
+                              },
                               icon: const Icon(
                                 Icons.edit_outlined,
                                 color: disstPurple,
@@ -297,8 +298,7 @@ class ProfileScreen extends StatelessWidget {
                                   vertical: 12,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                             ),
@@ -308,7 +308,14 @@ class ProfileScreen extends StatelessWidget {
 
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const DashboardScreen(),
+                                  ),
+                                );
+                              },
                               icon: const Icon(
                                 Icons.dashboard_outlined,
                                 color: disstBlue,
@@ -330,8 +337,7 @@ class ProfileScreen extends StatelessWidget {
                                   vertical: 12,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                             ),
@@ -342,7 +348,6 @@ class ProfileScreen extends StatelessWidget {
 
                     const SizedBox(height: 24),
 
-                    // Tabs
                     const Divider(height: 1),
 
                     Row(
@@ -431,9 +436,7 @@ class ProfileScreen extends StatelessWidget {
     required bool selected,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         children: [
           Icon(
